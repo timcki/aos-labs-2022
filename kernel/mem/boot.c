@@ -6,7 +6,7 @@
 /* This simple physical memory allocator is used only while OpenLSD is setting up
  * its virtual memory system.
  *
- * If n >-0, allocates enough pages of contiguous physical memory to hold 'n'
+ * If n >= 0, allocates enough pages of contiguous physical memory to hold 'n'
  * bytes. Doesn't initialize the memory. Returns a kernel virtual address.
  *
  * If n == 0, returns the address of the next free page without allocating
@@ -35,18 +35,12 @@ void *boot_alloc(uint32_t n)
 	/* Allocate a chunk large enough to hold 'n' bytes, then update
 	 * next_free. Make sure next_free is kept aligned to a multiple of
 	 * PAGE_SIZE.
-	 *
-	 * LAB 1: your code here.
 	 */
-	// start
-        result = next_free;
-        next_free = ROUNDUP((char *)next_free + n, PAGE_SIZE);
-        if((uint32_t)(uintptr_t)next_free > BOOT_MAP_LIM) {
-                panic("out of memory");
-        }
-        return result;
-        // end
-	return NULL;
+	result = next_free;
+	next_free = ROUNDUP(next_free + n, PAGE_SIZE);
+
+	assert((uint32_t)(uintptr_t)next_free < BOOT_MAP_LIM);
+	return result;
 }
 
 /* The addresses and lengths in the memory map provided by the boot loader may
