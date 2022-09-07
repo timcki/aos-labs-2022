@@ -62,6 +62,13 @@ int pml4_setup(struct boot_info *boot_info)
  * From USER_TOP to USER_LIM, the user is allowed to read but not write.
  * Above USER_LIM, the user cannot read or write.
  */
+
+typedef struct page_info page_info_t;
+struct page_info *alloc_pages(uint32_t n) {
+	page_info_t *ps = (page_info_t *)boot_alloc(n * sizeof(page_info_t));
+	return ps;
+}
+
 void mem_init(struct boot_info *boot_info)
 {
 	struct mmap_entry *entry;
@@ -93,7 +100,6 @@ void mem_init(struct boot_info *boot_info)
 	npages = MIN(BOOT_MAP_LIM, highest_addr) / PAGE_SIZE;
 
 	/* Remove this line when you're ready to test this function. */
-	panic("mem_init: This function is not finished\n");
 
 	/*
 	 * Allocate an array of npages 'struct page_info's and store it in 'pages'.
@@ -101,7 +107,7 @@ void mem_init(struct boot_info *boot_info)
 	 * physical page, there is a corresponding struct page_info in this array.
 	 * 'npages' is the number of physical pages in memory.  Your code goes here.
 	 */
-	pages = boot_alloc(npages * sizeof *pages);
+	pages = alloc_pages(npages);
 
 	/*
 	 * Now that we've allocated the initial kernel data structures, we set
@@ -155,7 +161,8 @@ void page_init(struct boot_info *boot_info)
 	 *  4) set the order pp_order to zero.
 	 */
 	for (i = 0; i < npages; ++i) {
-		/* LAB 1: your code here. */
+		list_init(&pages[i].pp_node);
+		pages[i].pp_ref = pages[i].pp_free = pages[i].pp_order = 0;
 	}
 
 	entry = (struct mmap_entry *)KADDR(boot_info->mmap_addr);
@@ -174,7 +181,22 @@ void page_init(struct boot_info *boot_info)
 	 *  - Any address in [KERNEL_LMA, end) is part of the kernel.
 	 */
 	for (i = 0; i < boot_info->mmap_len; ++i, ++entry) {
-		/* LAB 1: your code here. */
+		if (entry->type != MMAP_FREE)
+			continue;
+		int npages = entry->len / PAGE_SIZE;
+		for (int i = 0; i < npages; i++) {
+			physaddr_t addr = entry->addr+i*PAGE_SIZE;
+
+			if (addr >= BOOT_MAP_LIM)
+				continue;
+
+			page_info_t *page = pa2page(addr);
+			// reserved check
+			//if page.pp_zero
+			page_free(page);
+		}
+		//page_free()
+		
 	}
 }
 
