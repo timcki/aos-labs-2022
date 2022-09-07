@@ -22,10 +22,8 @@ extern struct list buddy_free_list[];
  * Above USER_LIM, the user cannot read or write.
  */
 
-typedef struct page_info page_info_t;
 struct page_info *alloc_pages(uint32_t n) {
-	page_info_t *ps = (page_info_t *)boot_alloc(n * sizeof(page_info_t));
-	return ps;
+	return (struct page_info *)boot_alloc(n * sizeof(struct page_info));
 }
 
 void mem_init(struct boot_info *boot_info)
@@ -83,6 +81,21 @@ void mem_init(struct boot_info *boot_info)
 }
 
 /*
+ * What memory is reserved?
+ *  - Address 0 contains the IVT and BIOS data.
+ *  - boot_info->elf_hdr points to the ELF header.
+ *  - Any address in [KERNEL_LMA, end) is part of the kernel.
+ */
+bool addr_reserved(physaddr_t addr, struct boot_info *bi, uintptr_t end) {
+	//cprintf("addr: %p eh: %p\n", addr, elf_hdr);
+	if (addr == 0 || addr == (uintptr_t)bi->elf_hdr)  return true;
+	if (addr == PAGE_ADDR(PADDR(bi))) return true;
+	else if (addr >= KERNEL_LMA && addr < end) return true;
+	//cprintf("%p works\n", addr);
+	return false;
+}
+
+/*
  * Initialize page structure and memory free list. After this is done, NEVER
  * use boot_alloc() again. After this function has been called to set up the
  * memory allocator, ONLY the buddy allocator should be used to allocate and
@@ -103,7 +116,10 @@ void page_init(struct boot_info *boot_info)
 	 */
 	for (i = 0; i < npages; ++i) {
 		list_init(&pages[i].pp_node);
-		pages[i].pp_ref = pages[i].pp_free = pages[i].pp_order = 0;
+
+		pages[i].pp_ref   = 0;
+		pages[i].pp_free  = 0;
+		pages[i].pp_order = 0;
 	}
 
 	entry = (struct mmap_entry *)KADDR(boot_info->mmap_addr);
@@ -124,19 +140,16 @@ void page_init(struct boot_info *boot_info)
 	for (i = 0; i < boot_info->mmap_len; ++i, ++entry) {
 		if (entry->type != MMAP_FREE)
 			continue;
-		int npages = entry->len / PAGE_SIZE;
-		for (int i = 0; i < npages; i++) {
-			physaddr_t addr = entry->addr+i*PAGE_SIZE;
+		//cprintf("%p\n", entry->addr);
 
-			if (addr >= BOOT_MAP_LIM)
+		for (pa = entry->addr; pa < entry->addr+entry->len; pa += PAGE_SIZE) {
+			if (pa >= BOOT_MAP_LIM)
 				continue;
-
-			page_info_t *page = pa2page(addr);
 			// reserved check
-			//if page.pp_zero
-			page_free(page);
+			if (addr_reserved(pa, boot_info, end))
+				continue;
+			page_free(pa2page(pa));
 		}
-		//page_free()
 		
 	}
 }
