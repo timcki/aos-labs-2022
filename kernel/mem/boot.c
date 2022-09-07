@@ -3,8 +3,6 @@
 
 #include <kernel/mem.h>
 
-
-
 /* This simple physical memory allocator is used only while OpenLSD is setting up
  * its virtual memory system.
  *
@@ -38,13 +36,10 @@ void *boot_alloc(uint32_t n)
 	 * next_free. Make sure next_free is kept aligned to a multiple of
 	 * PAGE_SIZE.
 	 */
-        result = next_free;
-        //next_free = ROUNDUP((char *)next_free + n, PAGE_SIZE);
-	//result = next_free;
+	result = next_free;
 	next_free = ROUNDUP(next_free + n, PAGE_SIZE);
 
-	assert((uint32_t)(uintptr_t)next_free > BOOT_MAP_LIM);
-
+	assert((uint32_t)(uintptr_t)next_free < BOOT_MAP_LIM);
 	return result;
 }
 
