@@ -38,6 +38,14 @@ void *boot_alloc(uint32_t n)
 	 *
 	 * LAB 1: your code here.
 	 */
+	// start
+        result = next_free;
+        next_free = ROUNDUP((char *)next_free + n, PAGE_SIZE);
+        if((uint32_t)(uintptr_t)next_free > BOOT_MAP_LIM) {
+                panic("out of memory");
+        }
+        return result;
+        // end
 	return NULL;
 }
 
