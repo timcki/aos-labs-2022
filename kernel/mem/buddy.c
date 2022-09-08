@@ -96,7 +96,7 @@ size_t count_total_free_pages(void)
         struct page_info *buddy;
         while(lhs->pp_order != req_order) {
 		lhs->pp_order -= 1;
-                buddy = pa2page(page2pa(lhs) ^ (1 << (lhs->pp_order)) * PAGE_SIZE);
+                buddy = pa2page(page2pa(lhs) ^ ((1 << (lhs->pp_order)) * PAGE_SIZE));
 		buddy->pp_order = lhs->pp_order;
                 buddy->pp_free = 1;
                 // add the buddy to the list
@@ -124,7 +124,7 @@ size_t count_total_free_pages(void)
 struct page_info *buddy_merge(struct page_info *page)
 {
 	// -> first find the buddy and the primary block
-	struct page_info *primary = pa2page(page2pa(page) & (-1 << (1 + page->pp_order)));
+	/*struct page_info *primary = pa2page(page2pa(page) & (-1 << (1 + page->pp_order)));
 	struct page_info *buddy = FIND_BUDDY(primary); // the buddy should have the same order as the primary
 
 	while(primary->pp_free && buddy->pp_free && primary->pp_order < BUDDY_MAX_ORDER-1) {
@@ -135,7 +135,36 @@ struct page_info *buddy_merge(struct page_info *page)
 		primary->pp_order += 1;
 		buddy = FIND_BUDDY(primary);
 	}
-	return primary;
+	return primary;*/
+	physaddr_t buddy_pa = page2pa(page) ^ ((1 << (page->pp_order)) * PAGE_SIZE);
+        //list_add(&buddy_free_list[page->pp_order], &(page->pp_node));
+        struct page_info *buddy, *temp_page;
+        struct list *temp;
+
+        while(page -> pp_order < BUDDY_MAX_ORDER) {
+                buddy_pa = page2pa(page) ^ ((1 << (page->pp_order)) * PAGE_SIZE);
+                buddy = NULL;
+
+                list_foreach(buddy_free_list + page -> pp_order, temp) {
+                        temp_page = container_of(temp, struct page_info, pp_node);
+                        if(page2pa(temp_page) == buddy_pa) {
+                                buddy = temp_page;
+                                break;
+                        }
+                }
+
+                if(buddy) {
+                        list_del(&(buddy -> pp_node));
+                        list_del(&(page -> pp_node));
+                        page->pp_free = 0;
+                        buddy->pp_free=0;
+                        page = (page2pa(page) < page2pa(buddy) ? page : buddy);
+                        page -> pp_order += 1;
+                        page -> pp_free = 1;
+                } else break;
+        }
+        list_add(&buddy_free_list[page->pp_order], &(page->pp_node));
+        return page;
 }
 
 /* Given the order req_order, attempts to find a page of that order or a larger
@@ -209,7 +238,7 @@ void page_free(struct page_info *pp)
 	struct page_info *merged = buddy_merge(pp);
 	//cprintf("adding free: %p\n", page2pa(merged));
 	
-	list_add(&buddy_free_list[merged->pp_order], &(merged->pp_node));
+	//list_add(&buddy_free_list[merged->pp_order], &(merged->pp_node));
 }
 
 /*
