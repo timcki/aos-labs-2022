@@ -136,7 +136,16 @@ struct page_info *buddy_merge(struct page_info *page)
 		buddy = FIND_BUDDY(primary);
 	}
 	return primary;*/
-	physaddr_t buddy_pa = page2pa(page) ^ ((1 << (page->pp_order)) * PAGE_SIZE);
+	/***
+	 * The previous method using primary blocks has some design flaws.
+	 * The idea of this new method is:
+	 * 	1. Find the physical address of the buddy memory of page.
+	 * 	2. And then check the free list with order page -> pp_order.
+	 * 	3. If there is a node having the same physical address with the desired buddy,
+	 * 		we merge it with page.
+	 * 	4. The memory with lower address will be the primary block.
+	 ***/
+	physaddr_t buddy_pa;// = page2pa(page) ^ ((1 << (page->pp_order)) * PAGE_SIZE);
         //list_add(&buddy_free_list[page->pp_order], &(page->pp_node));
         struct page_info *buddy, *temp_page;
         struct list *temp;
@@ -157,12 +166,15 @@ struct page_info *buddy_merge(struct page_info *page)
                         list_del(&(buddy -> pp_node));
                         list_del(&(page -> pp_node));
                         page->pp_free = 0;
-                        buddy->pp_free=0;
+                        buddy->pp_free=0; // the two lines are required to pass the consistency test:)
                         page = (page2pa(page) < page2pa(buddy) ? page : buddy);
                         page -> pp_order += 1;
-                        page -> pp_free = 1;
-                } else break;
+                        page -> pp_free = 1; // and here again, we set the 'primary' block to free.
+                } else {
+			break; // no merge possible
+		}
         }
+	// now the adding to free list is handled in this function, instead of in page_free.
         list_add(&buddy_free_list[page->pp_order], &(page->pp_node));
         return page;
 }
@@ -210,6 +222,7 @@ struct page_info *page_alloc(int alloc_flags)
 {
 	struct page_info *page;
 	size_t nbytes;
+#ifdef BONUS_LAB1
 	if (alloc_flags & ALLOC_HUGE) {
 		page = buddy_find(9); // huge page order number
 		nbytes = 2 * 1024 * 1024;
@@ -217,6 +230,10 @@ struct page_info *page_alloc(int alloc_flags)
 		page = buddy_find(0); // one page
 		nbytes = 4096;
 	}
+#else
+	page = buddy_find(0);
+	nbytes = 4096;
+#endif
 	if (alloc_flags & ALLOC_ZERO) {
 		memset(page2kva(page), 0, nbytes);
 	}
