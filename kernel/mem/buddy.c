@@ -95,7 +95,7 @@ size_t count_total_free_pages(void)
 {
         struct page_info *buddy;
         while(lhs->pp_order != req_order) {
-                buddy = pa2page(page2pa(lhs) + (1 << (lhs->pp_order)) * PAGE_SIZE);
+                buddy = pa2page(page2pa(lhs) ^ (1 << (lhs->pp_order)) * PAGE_SIZE);
 
                 lhs->pp_order -= 1;
                 buddy->pp_order -= 1;
