@@ -152,4 +152,5 @@ void page_init(struct boot_info *boot_info)
 		}
 		
 	}
+	show_buddy_info();
 }
