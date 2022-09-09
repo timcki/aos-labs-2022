@@ -211,6 +211,7 @@ void page_init(struct boot_info *boot_info)
 		}
 		
 	}
+	show_buddy_info();
 }
 
 /* Extend the buddy allocator by initializing the page structure and memory

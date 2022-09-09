@@ -5,7 +5,7 @@
 
 #include <kernel/mem.h>
 
-//
+//#define BONUS_LAB1
 #define FIND_BUDDY(p) pa2page(page2pa(p) ^ (1 << (p->pp_order)))
 
 /* Physical page metadata. */
@@ -200,6 +200,7 @@ struct page_info *buddy_find(size_t req_order)
 	if(order > req_order) {
 		page = buddy_split(page, req_order);
 	}
+	page -> pp_free = 0;
 	return page;
 }
 
@@ -218,6 +219,7 @@ struct page_info *buddy_find(size_t req_order)
  * Hint: use buddy_find() to find a free page of the right order.
  * Hint: use page2kva() and memset() to clear the page.
  */
+
 struct page_info *page_alloc(int alloc_flags)
 {
 	struct page_info *page;
@@ -229,14 +231,37 @@ struct page_info *page_alloc(int alloc_flags)
 	} else {
 		page = buddy_find(0); // one page
 		nbytes = 4096;
+		// use guard pages
+		/*page = buddy_find(2); // 4 pages;
+		nbytes = 4 * 4096;
+		memset(page2kva(page), 0, nbytes);
+		struct page_info *meta = page;
+		meta -> pp_order -= 1;
+		page = pa2page(page2pa(page) ^ ((1 << (page->pp_order)) * PAGE_SIZE));
+		page -> pp_order = 0; //meta -> pp_order;
+		page -> pp_free = 0;
+		meta -> pp_free = 0;
+		struct page_info *buddy = pa2page(page2pa(page) ^ ((1 << (page->pp_order)) * PAGE_SIZE));
+		buddy -> pp_order = 0;
+		buddy -> pp_free = 0;
+		cprintf("%p %p %p\n", page2pa(meta), page2pa(page), page2pa(buddy));
+		panic("!!!!!!!!!!!!");*/
 	}
 #else
 	page = buddy_find(0);
 	nbytes = 4096;
 #endif
+#ifdef BONUS_LAB1
+	// zero the page to reduce the power of UAF
+	// we were going to implement a random alloc alg, but since
+	// the lack of random number generator support, we dropped this.
+	// ( we even tried to get bios time using some asm, but there were some errors:(
+	memset(page2kva(page), 0, nbytes);
+#endif
 	if (alloc_flags & ALLOC_ZERO) {
 		memset(page2kva(page), 0, nbytes);
 	}
+	//page -> pp_free = 0;
 	return page;
 }
 
@@ -250,8 +275,52 @@ struct page_info *page_alloc(int alloc_flags)
 void page_free(struct page_info *pp)
 {
 	assert(pp->pp_ref == 0);
-
+#ifdef BONUS_LAB1
+	// check invalid free
+	struct page_info *primary = pa2page( page2pa(pp) & ( ((long)-1 << (1 + pp->pp_order) ) * PAGE_SIZE) );
+	if(page2pa(pp) % PAGE_SIZE != 0) {
+		cprintf("Trying to free an invalid page\n");
+	}
+	if(page2pa(primary) == page2pa(pp)) {
+		// if pp is the primary block
+		// seems like not much we can do?
+	} else {
+		// the buddy is the primary block
+		assert((page2pa(pp) ^ ((1 << (pp->pp_order)) * PAGE_SIZE)) == page2pa(primary));
+		if(primary -> pp_order > pp -> pp_order) {
+			// which means that pp is not valid
+			cprintf("invalid free detected\n");
+			return;
+		}
+	}
+	if(pp -> pp_free == 1) {
+                // double free
+                cprintf("double free detected at page %p\n", page2pa(pp));
+                //return;
+        }
+#endif
 	pp->pp_free = 1;
+#ifdef BONUS_LAB1
+	/*if(pp -> pp_order == 0) {
+		// check and recover
+		// buggy!
+		struct page_info *buddy = pa2page(page2pa(pp) ^ ((1 << (pp->pp_order)) * PAGE_SIZE));
+		for(int i = 0; i < 4096; i++) {
+			if(page2pa(buddy) + i) {
+				//cprintf("out of bounds write detected\n");
+			}
+		}
+		pp -> pp_order = 1;
+		buddy = pa2page(page2pa(pp) ^ ((1 << (pp->pp_order)) * PAGE_SIZE));
+		for(int i = 0; i < 2 * 4096; i++) {
+                        if(page2pa(buddy) + i) {
+                                //cprintf("out of bounds write detected\n");
+                        }
+                }
+		buddy -> pp_order = 2;
+		pp = buddy;
+	}*/
+#endif
 	struct page_info *merged = buddy_merge(pp);
 	//cprintf("adding free: %p\n", page2pa(merged));
 	
