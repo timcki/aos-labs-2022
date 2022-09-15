@@ -15,5 +15,8 @@ void tlb_invalidate(struct page_table *pml4, void *va)
 	 * Note: for now, there is only one address space, so always invalidate.
 	 */
 	/* LAB 2: your code here. */
+	// I didn't truely understand the part "only if the page tables being modified" and "always invalidate"
+	// So this might be wrong
+	flush_page(va);
 }
 
