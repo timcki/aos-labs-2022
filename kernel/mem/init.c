@@ -51,6 +51,11 @@ int pml4_setup(struct boot_info *boot_info)
 	return 0;
 }
 
+
+struct page_info *alloc_pages(uint32_t n) {
+	return (struct page_info *)boot_alloc(n * sizeof(struct page_info));
+}
+
 /*
  * Set up a four-level page table:
  * kernel_pml4 is its linear (virtual) address of the root
@@ -62,6 +67,7 @@ int pml4_setup(struct boot_info *boot_info)
  * From USER_TOP to USER_LIM, the user is allowed to read but not write.
  * Above USER_LIM, the user cannot read or write.
  */
+
 void mem_init(struct boot_info *boot_info)
 {
 	struct mmap_entry *entry;
@@ -92,16 +98,13 @@ void mem_init(struct boot_info *boot_info)
 	 */
 	npages = MIN(BOOT_MAP_LIM, highest_addr) / PAGE_SIZE;
 
-	/* Remove this line when you're ready to test this function. */
-	panic("mem_init: This function is not finished\n");
-
 	/*
 	 * Allocate an array of npages 'struct page_info's and store it in 'pages'.
 	 * The kernel uses this array to keep track of physical pages: for each
 	 * physical page, there is a corresponding struct page_info in this array.
 	 * 'npages' is the number of physical pages in memory.  Your code goes here.
 	 */
-	pages = boot_alloc(npages * sizeof *pages);
+	pages = alloc_pages(npages);
 
 	/*
 	 * Now that we've allocated the initial kernel data structures, we set
@@ -136,6 +139,18 @@ void mem_init(struct boot_info *boot_info)
 }
 
 /*
+ * What memory is reserved?
+ *  - Address 0 contains the IVT and BIOS data.
+ *  - boot_info->elf_hdr points to the ELF header.
+ *  - Any address in [KERNEL_LMA, end) is part of the kernel.
+ */
+bool addr_reserved(physaddr_t addr, struct boot_info *bi, uintptr_t end) {
+	return addr == 0 || addr == (uintptr_t)bi->elf_hdr || 
+	addr == PAGE_ADDR(PADDR(bi)) ||
+	(addr >= KERNEL_LMA && addr < end);
+}
+
+/*
  * Initialize page structure and memory free list. After this is done, NEVER
  * use boot_alloc() again. After this function has been called to set up the
  * memory allocator, ONLY the buddy allocator should be used to allocate and
@@ -155,7 +170,11 @@ void page_init(struct boot_info *boot_info)
 	 *  4) set the order pp_order to zero.
 	 */
 	for (i = 0; i < npages; ++i) {
-		/* LAB 1: your code here. */
+		list_init(&pages[i].pp_node);
+
+		pages[i].pp_ref   = 0;
+		pages[i].pp_free  = 0;
+		pages[i].pp_order = 0;
 	}
 
 	entry = (struct mmap_entry *)KADDR(boot_info->mmap_addr);
@@ -174,8 +193,17 @@ void page_init(struct boot_info *boot_info)
 	 *  - Any address in [KERNEL_LMA, end) is part of the kernel.
 	 */
 	for (i = 0; i < boot_info->mmap_len; ++i, ++entry) {
-		/* LAB 1: your code here. */
+		if (entry->type != MMAP_FREE)
+			continue;
+
+		for (pa = entry->addr; pa < entry->addr+entry->len; pa += PAGE_SIZE) {
+      // conditions check
+			if (pa >= BOOT_MAP_LIM || addr_reserved(pa, boot_info, end))
+				continue;
+			page_free(pa2page(pa));
+		}
 	}
+	show_buddy_info();
 }
 
 /* Extend the buddy allocator by initializing the page structure and memory
@@ -198,6 +226,13 @@ void page_init_ext(struct boot_info *boot_info)
 	 *  4) Hand the page to the buddy allocator by calling page_free().
 	 */
 	for (i = 0; i < boot_info->mmap_len; ++i, ++entry) {
-		/* LAB 2: your code here. */
+		if (entry->type != MMAP_FREE)
+			continue;
+
+		for (pa = entry->addr; pa < entry->addr+entry->len; pa += PAGE_SIZE) {
+			if (pa < BOOT_MAP_LIM)
+				continue;
+			page_free(pa2page(pa));
 	}
+	show_buddy_info();
 }
