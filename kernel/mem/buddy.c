@@ -5,9 +5,6 @@
 
 #include <kernel/mem.h>
 
-#define FIND_BUDDY(p) pa2page(page2pa(p) ^ ((1 << (lhs->pp_order)) * PAGE_SIZE))
-#define FIND_PRIMARY(p) pa2page(page2pa(p) & (((long)-1 << (1 + p->pp_order)) * PAGE_SIZE))
-
 /* Physical page metadata. */
 size_t npages;
 struct page_info *pages;
@@ -19,7 +16,8 @@ struct page_info *pages;
  */
 struct list buddy_free_list[BUDDY_MAX_ORDER];
 
-// Counts the number of free pages for the given order.
+/* Counts the number of free pages for the given order.
+ */
 size_t count_free_pages(size_t order)
 {
 	struct list *node;
@@ -92,15 +90,8 @@ size_t count_total_free_pages(void)
  */
  struct page_info *buddy_split(struct page_info *lhs, size_t req_order)
 {
-        struct page_info *buddy;
-        while(lhs->pp_order != req_order) {
-			lhs->pp_order -= 1;
-			buddy = FIND_BUDDY(lhs);
-			buddy->pp_order = lhs->pp_order;
-			buddy->pp_free = 1;
-			list_add(&buddy_free_list[buddy->pp_order], &(buddy->pp_node));
-        }
-		return lhs;
+	/* LAB 1: your code here. */
+	return NULL;
 }
 
 /* Merges the buddy of the page with the page if the buddy is free to form
@@ -121,42 +112,8 @@ size_t count_total_free_pages(void)
  */
 struct page_info *buddy_merge(struct page_info *page)
 {
-	/*
-	 * The previous method using primary blocks has some design flaws.
-	 * The idea of this new method is:
-	 * 	1. Find the physical address of the buddy memory of page.
-	 * 	2. And then check the free list with order page -> pp_order.
-	 * 	3. If there is a node having the same physical address with the desired buddy,
-	 * 		we merge it with page.
-	 * 	4. The memory with lower address will be the primary block.
-	 */
-	struct page_info *buddy;
-	struct list *temp;
-
-	do {
-		physaddr_t buddy_pa = page2pa(page) ^ ((1 << (page->pp_order)) * PAGE_SIZE);
-		buddy = NULL;
-
-		list_foreach(&buddy_free_list[page->pp_order], temp) {
-			struct page_info *tb = container_of(temp, struct page_info, pp_node);
-			if (page2pa(tb) == buddy_pa) {
-					buddy = tb;
-					break;
-			}
-		}
-
-		if (buddy) {
-			list_del(&(buddy->pp_node));
-			list_del(&(page->pp_node));
-			page->pp_free = 0;
-			buddy->pp_free = 0; // the two lines are required to pass the consistency test:)
-			page = (page2pa(page) < page2pa(buddy) ? page : buddy);
-			page->pp_order += 1;
-			page->pp_free = 1; // and here again, we set the 'primary' block to free.
-		}
-	} while (page->pp_order < BUDDY_MAX_ORDER && buddy != NULL);
-
-	return page;
+	/* LAB 1: your code here. */
+	return NULL;
 }
 
 /* Given the order req_order, attempts to find a page of that order or a larger
@@ -168,19 +125,8 @@ struct page_info *buddy_merge(struct page_info *page)
  */
 struct page_info *buddy_find(size_t req_order)
 {
-	size_t order = req_order;
-	while (order < BUDDY_MAX_ORDER) {
-		if (count_free_pages(order)) break;
-		order++;
-	}
-	if (order == BUDDY_MAX_ORDER)
-		return NULL;
-	struct page_info *page = container_of(list_pop_tail(buddy_free_list + order), struct page_info, pp_node);
-	if (order > req_order) {
-		page = buddy_split(page, req_order);
-	}
-	page->pp_free = 0;
-	return page;
+	/* LAB 1: your code here. */
+	return NULL;
 }
 
 /*
@@ -198,33 +144,10 @@ struct page_info *buddy_find(size_t req_order)
  * Hint: use buddy_find() to find a free page of the right order.
  * Hint: use page2kva() and memset() to clear the page.
  */
-
 struct page_info *page_alloc(int alloc_flags)
 {
-	struct page_info *page;
-	size_t nbytes;
-#ifdef BONUS_LAB1
-	if (alloc_flags & ALLOC_HUGE) {
-		page = buddy_find(9); // huge page order number
-		nbytes = 2 * 1024 * 1024;
-	} else {
-		page = buddy_find(0); // one page
-		nbytes = 4096;
-	}
-#else
-	page = buddy_find(0);
-	nbytes = 4096;
-#endif
-#ifdef BONUS_LAB1
-	// zero the page to reduce the power of UAF
-	// we were going to implement a random alloc alg, but since
-	// the lack of random number generator support, we dropped this.
-	// (we even tried to get bios time using some asm, but there were errors)
-	memset(page2kva(page), 0, nbytes);
-#endif
-	if (alloc_flags & ALLOC_ZERO)
-		memset(page2kva(page), 0, nbytes);
-	return page;
+	/* LAB 1: your code here. */
+	return NULL;
 }
 
 /*
@@ -236,34 +159,7 @@ struct page_info *page_alloc(int alloc_flags)
  */
 void page_free(struct page_info *pp)
 {
-	assert(pp->pp_ref == 0);
-#ifdef BONUS_LAB1
-	// check invalid free
-	struct page_info *primary = FIND_PRIMARY(pp);
-	if (page2pa(pp) % PAGE_SIZE)
-		cprintf("Trying to free an invalid page\n");
-
-	if (page2pa(primary) == page2pa(pp)) {
-		// if pp is the primary block
-		// seems like not much we can do?
-	} else {
-		// the buddy is the primary block
-		assert((page2pa(pp) ^ ((1 << (pp->pp_order)) * PAGE_SIZE)) == page2pa(primary));
-		if (primary->pp_order > pp->pp_order) {
-			// which means that pp is not valid
-			cprintf("invalid free detected\n");
-			return;
-		}
-	}
-
-	// double free
-	if(pp->pp_free)
-		cprintf("double free detected at page %p\n", page2pa(pp));
-#endif
-	pp->pp_free = 1;
-	struct page_info *merged = buddy_merge(pp);
-	
-	list_add(&buddy_free_list[merged->pp_order], &(merged->pp_node));
+	/* LAB 1: your code here. */
 }
 
 /*
@@ -272,8 +168,9 @@ void page_free(struct page_info *pp)
  */
 void page_decref(struct page_info *pp)
 {
-	if (--pp->pp_ref == 0) 
+	if (--pp->pp_ref == 0) {
 		page_free(pp);
+	}
 }
 
 static int in_page_range(void *p)
