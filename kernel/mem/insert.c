@@ -21,6 +21,15 @@ static int insert_pte(physaddr_t *entry, uintptr_t base, uintptr_t end,
 	struct page_info *page;
 
 	/* LAB 2: your code here. */
+	// start
+	if(*entry & PAGE_PRESENT) {
+		page = pa2page(PAGE_ADDR(*entry));
+		page_decref(page);
+		tlb_invalidate(info -> pml4, page2kva(page));
+	}
+	(info -> page -> pp_ref) += 1;
+	*entry = page2pa(info -> page) | info -> flags | PAGE_PRESENT; // I think we should set PAGE_PRESENT
+	// end
 
 	return 0;
 }
@@ -39,6 +48,17 @@ static int insert_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 	struct page_info *page;
 
 	/* LAB 2: your code here. */
+	// start
+	if(*entry & PAGE_PRESENT) {
+		if(*entry & PAGE_HUGE) {
+			page = pa2page(PAGE_ADDR(*entry));
+        	        page_decref(page);
+	                tlb_invalidate(info -> pml4, page2kva(page));
+		}
+		// TODO:
+		// I didn't understand the part "Then if the new page is a 4k page ..."
+	}
+	// end
 
 	return 0;
 }

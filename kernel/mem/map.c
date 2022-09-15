@@ -18,7 +18,11 @@ static int boot_map_pte(physaddr_t *entry, uintptr_t base, uintptr_t end,
 {
 	struct boot_map_info *info = walker->udata;
 
-	/* LAB 2: your code here. */
+	/* LAB 2: your code here. i*/
+	// start
+	*entry = info -> pa | info -> flags;
+	(info -> pa) += PAGE_SIZE;
+	// end
 	return 0;
 }
 
@@ -34,6 +38,14 @@ static int boot_map_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 	struct boot_map_info *info = walker->udata;
 
 	/* LAB 2: your code here. */
+	// start
+	*entry = info -> pa | info -> flags;
+	if(info -> flags & PAGE_HUGE) {
+		(info -> pa) += PAGE_SIZE * 512;
+	} else {
+		// TODO:
+	}
+	// end
 	return 0;
 }
 

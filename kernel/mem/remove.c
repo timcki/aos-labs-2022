@@ -17,6 +17,15 @@ static int remove_pte(physaddr_t *entry, uintptr_t base, uintptr_t end,
 	struct page_info *page;
 
 	/* LAB 2: your code here. */
+	// start
+	if(*entry & PAGE_PRESENT) {
+		page = pa2page(PAGE_ADDR(*entry));
+		page_decref(page);
+		// clear the PTE by setting it to NULL? not sure
+		*entry = NULL;
+		tlb_invalidate(info -> pml4, page2kva(page));
+	}
+	// end
 	return 0;
 }
 
@@ -30,6 +39,15 @@ static int remove_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 	struct page_info *page;
 
 	/* LAB 2: your code here. */
+	// start
+	if(*entry & PAGE_PRESENT && *entry & PAGE_HUGE) {
+		page = pa2page(PAGE_ADDR(*entry));
+                page_decref(page);
+                // clear the PTE by setting it to NULL? not sure
+                *entry = NULL;
+                tlb_invalidate(info -> pml4, page2kva(page));
+	}
+	// end
 	return 0;
 }
 
