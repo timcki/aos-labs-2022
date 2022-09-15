@@ -233,6 +233,7 @@ void page_init_ext(struct boot_info *boot_info)
 			if (pa < BOOT_MAP_LIM)
 				continue;
 			page_free(pa2page(pa));
-	}
+    }
 	show_buddy_info();
+  }
 }
