@@ -146,12 +146,9 @@ void mem_init(struct boot_info *boot_info)
  *  - Any address in [KERNEL_LMA, end) is part of the kernel.
  */
 bool addr_reserved(physaddr_t addr, struct boot_info *bi, uintptr_t end) {
-	//cprintf("addr: %p eh: %p\n", addr, elf_hdr);
-	if (addr == 0 || addr == (uintptr_t)bi->elf_hdr)  return true;
-	if (addr == PAGE_ADDR(PADDR(bi))) return true;
-	else if (addr >= KERNEL_LMA && addr < end) return true;
-	//cprintf("%p works\n", addr);
-	return false;
+	return addr == 0 || addr == (uintptr_t)bi->elf_hdr || 
+	addr == PAGE_ADDR(PADDR(bi)) ||
+	(addr >= KERNEL_LMA && addr < end);
 }
 
 /*
@@ -209,7 +206,6 @@ void page_init(struct boot_info *boot_info)
 				continue;
 			page_free(pa2page(pa));
 		}
-		
 	}
 	show_buddy_info();
 }
@@ -236,4 +232,5 @@ void page_init_ext(struct boot_info *boot_info)
 	for (i = 0; i < boot_info->mmap_len; ++i, ++entry) {
 		/* LAB 2: your code here. */
 	}
+	show_buddy_info();
 }
