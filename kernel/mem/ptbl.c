@@ -46,11 +46,22 @@ int ptbl_split(physaddr_t *entry, uintptr_t base, uintptr_t end,
 {
 	/* LAB 2: your code here. */
 	// start
-	if(*entry & PAGE_HUGE) { // Otherwise
-		struct page_info *page = page_alloc(0);
-		(page -> pp_ref) += 1;
-		*entry = page2pa(page) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
+	int res;
+	if(!(*entry & PAGE_HUGE)) {
+		res = ptbl_alloc(entry, base, end, walker);
+		return res;
 	}
+	struct page_info *page = page_alloc(0);
+	(page -> pp_ref) += 1;
+	*entry = page2pa(page) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
+	physaddr_t *temp;
+	for(size_t i = 0; i < PAGE_SIZE / sizeof(physaddr_t); i++) {
+		// for each entry in the PDE (i.e., the variable entry)
+		// seems like we need to transform the pa to kva here?
+		temp = (physaddr_t)page2kva(page) + 8;
+		res = ptbl_alloc(temp, base, end, walker);
+	}
+	return res;
 	// end
 	return 0;
 }
@@ -74,6 +85,30 @@ int ptbl_merge(physaddr_t *entry, uintptr_t base, uintptr_t end,
     struct page_walker *walker)
 {
 	/* LAB 2: your code here. */
+	// start
+	int res;
+	if(*entry & PAGE_HUGE) {
+		return 0;
+	}
+	if(!(*entry & PAGE_PRESENT)) {
+		return 0;
+	}
+	for(size_t i = 0; i < PAGE_SIZE / sizeof(physaddr_t); i++) {
+		if(!(*(entry[i]) & PAGE_PRESENT)) { // TODO: missing the same flags condition: where to find these flags? in udata?
+			return 0;
+		}
+	}
+	struct page_info *page = page_alloc(ALLOC_HUGE);
+	(page -> pp_ref) += 1;
+        *entry = page2pa(page) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER | PAGE_HUGE;
+	// TODO: how to set the flags
+	// free previously used pages
+	for(size_t i = 0; i < PAGE_SIZE / sizeof(physaddr_t); i++) {
+		if(!(*(entry[i]) & PAGE_PRESENT)) {
+			page_free(pa2page(PAGE_ADDR(*(entry[i]))));
+		}
+	}
+	// end
 	return 0;
 }
 
@@ -88,7 +123,15 @@ int ptbl_free(physaddr_t *entry, uintptr_t base, uintptr_t end,
 {
 	/* LAB 2: your code here. */
 	// start
-	
+	if(!(*entry & PAGE_PRESENT)) {
+		return 0;
+	}
+	for(size_t i = 0; i < PAGE_SIZE / sizeof(physaddr_t); i++) {
+                if(*(entry[i]) & PAGE_PRESENT) {
+                        return 0;
+                }
+        }
+	page_free(pa2page(PAGE_ADDR(*entry)));
 	// end
 	return 0;
 }
