@@ -43,7 +43,7 @@ static int boot_map_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 	if(info -> flags & PAGE_HUGE) {
 		(info -> pa) += PAGE_SIZE * 512;
 	} else {
-		// TODO:
+		ptbl_split(entry, base, end, walker); // return value is ignored here.
 	}
 	// end
 	return 0;
@@ -73,6 +73,7 @@ void boot_map_region(struct page_table *pml4, void *va, size_t size,
 		.pte_callback = boot_map_pte,
 		.pde_callback = boot_map_pde,
 		/* LAB 2: your code here. */
+		// TODO: do we need add other callbacks here? --- Yiming
 		.udata = &info,
 	};
 
@@ -97,6 +98,25 @@ void boot_map_kernel(struct page_table *pml4, struct elf *elf_hdr)
 	    (struct elf_proghdr *)((char *)elf_hdr + elf_hdr->e_phoff);
 	uint64_t flags;
 	size_t i;
+	struct elf_proghdr *cur_hdr;
+	uintptr_t va;
 
 	/* LAB 2: your code here. */
+	// start
+	boot_map_region(pml4, KERNEL_VMA, BOOT_MAP_LIM, 0x100000, PAGE_WRITE | PAGE_PRESENT | PAGE_NO_EXEC); // didn't find PAGE_READ
+	for(i = 0; i < elf_hdr -> e_phnum; i++) {
+		cur_hdr = prog_hdr + i;
+		va = cur_hdr -> p_va;
+		if(cur_hdr -> p_type == ELF_PROG_LOAD && va >= KERNEL_VMA) {
+			flags = 0;
+			if(!(cur_hdr -> p_flags & ELF_PROG_FLAG_EXEC)) {
+				flags |= PAGE_NO_EXEC;
+			}
+			if(cur_hdr -> p_flags & ELF_PROG_FLAG_WRITE) {
+				flags |= PAGE_WRITE;
+			}
+			boot_map_region(pml4, va, cur_hdr -> p_memsz, cur_hdr -> p_pa, flags);
+		}
+	}
+	// end
 }
