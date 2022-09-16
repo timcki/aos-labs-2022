@@ -96,7 +96,7 @@ int page_insert(struct page_table *pml4, struct page_info *page, void *va,
     uint64_t flags)
 {
 	struct insert_info info;
-	info.page_table = pml4;
+	info.pml4 = pml4;
         info.page = page;
         info.flags = flags | PAGE_PRESENT;
 	struct page_walker walker = {
@@ -113,7 +113,7 @@ int page_insert(struct page_table *pml4, struct page_info *page, void *va,
 
 	/* LAB 2: your code here. */
 	// start
-	if(!hpage_aligned(va)) {
+	if(!hpage_aligned((uintptr_t)va)) {
 		return -1;
 	}
 	// end
