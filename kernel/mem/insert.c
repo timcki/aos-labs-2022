@@ -46,17 +46,21 @@ static int insert_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 {
 	struct insert_info *info = walker->udata;
 	struct page_info *page;
+	struct page_info *temp_page;
 
 	/* LAB 2: your code here. */
 	// start
-	if(*entry & PAGE_PRESENT) {
-		if(*entry & PAGE_HUGE) {
-			page = pa2page(PAGE_ADDR(*entry));
-        	        page_decref(page);
-	                tlb_invalidate(info -> pml4, page2kva(page));
-		}
-		// TODO:
-		// I didn't understand the part "Then if the new page is a 4k page ..."
+	if(*entry & PAGE_PRESENT && *entry & PAGE_HUGE) {
+		temp_page = pa2page(PAGE_ADDR(*entry));
+		page_decref(temp_page);
+		tlb_invalidate(info -> pml4, page2kva(temp_page));
+	}
+	if(*entry & PAGE_HUGE) {
+		temp_page = info -> page;
+		temp_page -> pp_ref += 1;
+		*entry = page2pa(temp_page) | info -> flags | PAGE_PRESENT;
+	} else {
+		ptbl_alloc(entry, base, end, walker);
 	}
 	// end
 
@@ -92,14 +96,27 @@ int page_insert(struct page_table *pml4, struct page_info *page, void *va,
     uint64_t flags)
 {
 	struct insert_info info;
+	info.page_table = pml4;
+        info.page = page;
+        info.flags = flags | PAGE_PRESENT;
 	struct page_walker walker = {
 		.pte_callback = insert_pte,
 		.pde_callback = insert_pde,
 		/* LAB 2: your code here. */
+		// start
+		// seems like we need to add callbacks for pdpte and pml4
+		.pdpte_callback = insert_pde,
+		.pml4e_callback = insert_pte, // pml4 doesn't have huge page option
+		// end
 		.udata = &info,
 	};
 
 	/* LAB 2: your code here. */
+	// start
+	if(!hpage_aligned(va)) {
+		return -1;
+	}
+	// end
 
 	return walk_page_range(pml4, va, (void *)((uintptr_t)va + PAGE_SIZE),
 		&walker);

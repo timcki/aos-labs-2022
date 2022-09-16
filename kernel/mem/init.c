@@ -32,6 +32,9 @@ int pml4_setup(struct boot_info *boot_info)
 	 */
 
 	/* LAB 2: your code here. */
+	// start
+	boot_map_kernel(kernel_pml4, boot_info -> elf_hdr);
+	// end
 
 	/* Use the physical memory that 'bootstack' refers to as the kernel
 	 * stack. The kernel stack grows down from virtual address KSTACK_TOP.
@@ -41,12 +44,20 @@ int pml4_setup(struct boot_info *boot_info)
 	/* Map in the pages from the buddy allocator as RW-. */
 
 	/* LAB 2: your code here. */
+	// start
+	boot_map_region(kernel_pml4, KSTACK_TOP - KSTACK_SIZE, KSTACK_SIZE, bootstack, PAGE_PRESENT | PAGE_WRITE | PAGE_NO_EXEC);
+	boot_map_region(kernel_pml4, pages, npages * PAGE_SIZE, page2pa(pages), PAGE_PRESENT | PAGE_WRITE | PAGE_NO_EXEC);
+
+	// end
 
 	/* Migrate the struct page_info structs to the newly mapped area using
 	 * buddy_migrate().
 	 */
 
 	/* LAB 2: your code here. */
+	// start
+	// TODO: didn't find buddy_migrate function
+	// end
 
 	return 0;
 }
@@ -121,12 +132,18 @@ void mem_init(struct boot_info *boot_info)
 
 	/* Enable the NX-bit. */
 	/* LAB 2: your code here. */
+	// start
+	// am i doing right? i found something on osdev and translated to the following, seems like very complex
+	uint64_t nxval = read_msr(MSR_EFER) | MSR_EFER_NXE;
+	write_msr(MSR_EFER, nxval);
+	// end
 
 	/* Check the kernel PML4. */
 	lab2_check_pml4();
 
 	/* Load the kernel PML4. */
 	/* LAB 2: your code here. */
+	load_pml4(PADDR(kernel_pml4));
 
 	/* Check the paging functions. */
 	lab2_check_paging();
