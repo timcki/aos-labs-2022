@@ -33,7 +33,7 @@ static int lookup_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 
 	/* LAB 2: your code here. */
 	// start
-	if(*entry & PAGE_PRESENT) {
+	if(*entry & PAGE_PRESENT && *entry & PAGE_HUGE) {
                 info -> entry = entry;
         }
 	// end

@@ -17,7 +17,13 @@ static int remove_pte(physaddr_t *entry, uintptr_t base, uintptr_t end,
 	struct page_info *page;
 
 	/* LAB 2: your code here. */
-	// start
+	// starit
+#ifdef BONUS LAB2
+	// check if the free is valid
+	if(!(*entry & PAGE_PRESENT)) {
+		panic("trying to free a non-present page\n");
+	}
+#endif
 	if(*entry & PAGE_PRESENT) {
 		page = pa2page(PAGE_ADDR(*entry));
 		page_decref(page);
@@ -40,6 +46,12 @@ static int remove_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 
 	/* LAB 2: your code here. */
 	// start
+#ifdef BONUS LAB2
+        // check if the free is valid
+        if(!(*entry & PAGE_PRESENT)) {
+                panic("trying to free a non-present page\n");
+        }
+#endif
 	if(*entry & PAGE_PRESENT && *entry & PAGE_HUGE) {
 		page = pa2page(PAGE_ADDR(*entry));
                 page_decref(page);
