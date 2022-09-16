@@ -103,7 +103,7 @@ void boot_map_kernel(struct page_table *pml4, struct elf *elf_hdr)
 
 	/* LAB 2: your code here. */
 	// start
-	boot_map_region(pml4, KERNEL_VMA, BOOT_MAP_LIM, 0x100000, PAGE_WRITE | PAGE_PRESENT | PAGE_NO_EXEC); // didn't find PAGE_READ
+	boot_map_region(pml4, (void *)KERNEL_VMA, BOOT_MAP_LIM, 0x100000, PAGE_WRITE | PAGE_PRESENT | PAGE_NO_EXEC); // didn't find PAGE_READ
 	for(i = 0; i < elf_hdr -> e_phnum; i++) {
 		cur_hdr = prog_hdr + i;
 		va = cur_hdr -> p_va;
@@ -115,7 +115,7 @@ void boot_map_kernel(struct page_table *pml4, struct elf *elf_hdr)
 			if(cur_hdr -> p_flags & ELF_PROG_FLAG_WRITE) {
 				flags |= PAGE_WRITE;
 			}
-			boot_map_region(pml4, va, cur_hdr -> p_memsz, cur_hdr -> p_pa, flags);
+			boot_map_region(pml4, (void *)va, cur_hdr -> p_memsz, cur_hdr -> p_pa, flags);
 		}
 	}
 	// end

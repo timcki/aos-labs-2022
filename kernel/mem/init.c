@@ -45,7 +45,7 @@ int pml4_setup(struct boot_info *boot_info)
 
 	/* LAB 2: your code here. */
 	// start
-	boot_map_region(kernel_pml4, KSTACK_TOP - KSTACK_SIZE, KSTACK_SIZE, bootstack, PAGE_PRESENT | PAGE_WRITE | PAGE_NO_EXEC);
+	boot_map_region(kernel_pml4, (void *)(KSTACK_TOP - KSTACK_SIZE), KSTACK_SIZE, (physaddr_t)bootstack, PAGE_PRESENT | PAGE_WRITE | PAGE_NO_EXEC);
 	boot_map_region(kernel_pml4, pages, npages * PAGE_SIZE, page2pa(pages), PAGE_PRESENT | PAGE_WRITE | PAGE_NO_EXEC);
 
 	// end
@@ -143,7 +143,7 @@ void mem_init(struct boot_info *boot_info)
 
 	/* Load the kernel PML4. */
 	/* LAB 2: your code here. */
-	load_pml4(PADDR(kernel_pml4));
+	load_pml4((struct page_table *)PADDR(kernel_pml4));
 
 	/* Check the paging functions. */
 	lab2_check_paging();

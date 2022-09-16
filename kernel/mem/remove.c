@@ -22,7 +22,7 @@ static int remove_pte(physaddr_t *entry, uintptr_t base, uintptr_t end,
 		page = pa2page(PAGE_ADDR(*entry));
 		page_decref(page);
 		// clear the PTE by setting it to NULL? not sure
-		*entry = NULL;
+		*entry = 0;
 		tlb_invalidate(info -> pml4, page2kva(page));
 	}
 	// end
@@ -44,7 +44,7 @@ static int remove_pde(physaddr_t *entry, uintptr_t base, uintptr_t end,
 		page = pa2page(PAGE_ADDR(*entry));
                 page_decref(page);
                 // clear the PTE by setting it to NULL? not sure
-                *entry = NULL;
+                *entry = 0;
                 tlb_invalidate(info -> pml4, page2kva(page));
 	}
 	// end
